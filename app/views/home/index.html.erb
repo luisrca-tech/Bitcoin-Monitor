@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Bitcoin Price Monitor</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100">
+  <div class="container mx-auto px-4 py-8">
+    <h1 class="text-4xl font-bold text-center mb-8 text-gray-800">Bitcoin Price Monitor</h1>
+    
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <!-- Current Price Card -->
+      <div class="bg-white rounded-lg shadow-lg p-6">
+        <h2 class="text-xl font-semibold text-gray-700 mb-2">Current Price</h2>
+        <p class="text-3xl font-bold text-green-600" id="current-price">
+          $<%= Bitcoin.latest_price || 'Loading...' %>
+        </p>
+      </div>
+
+      <!-- 24h Change Card -->
+      <div class="bg-white rounded-lg shadow-lg p-6">
+        <h2 class="text-xl font-semibold text-gray-700 mb-2">24h Change</h2>
+        <p class="text-3xl font-bold <%= Bitcoin.price_change_24h >= 0 ? 'text-green-600' : 'text-red-600' %>" id="price-change">
+          <%= Bitcoin.price_change_24h %>% 
+        </p>
+      </div>
+
+      <!-- Last Updated Card -->
+      <div class="bg-white rounded-lg shadow-lg p-6">
+        <h2 class="text-xl font-semibold text-gray-700 mb-2">Last Updated</h2>
+        <p class="text-3xl font-bold text-blue-600" id="last-updated">
+          <%= Time.current.strftime("%H:%M:%S") %>
+        </p>
+      </div>
+    </div>
+
+    <!-- Price Chart -->
+    <div class="bg-white rounded-lg shadow-lg p-6">
+      <canvas id="priceChart"></canvas>
+    </div>
+  </div>
+
+  <script>
+    // Initialize Chart
+    const ctx = document.getElementById('priceChart').getContext('2d');
+    const priceChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Bitcoin Price (USD)',
+          data: [],
+          borderColor: 'rgb(34, 197, 94)',
+          tension: 0.1
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            beginAtZero: false
+          }
+        }
+      }
+    });
+
+    // Update data every 10 seconds
+    function updateData() {
+      fetch('/bitcoin/price')
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById('current-price').textContent = `$${data.price}`;
+          document.getElementById('price-change').textContent = `${data.price_change}%`;
+          document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
+          
+          // Update chart
+          priceChart.data.labels.push(new Date().toLocaleTimeString());
+          priceChart.data.datasets[0].data.push(data.price);
+          
+          // Keep only last 30 data points
+          if (priceChart.data.labels.length > 30) {
+            priceChart.data.labels.shift();
+            priceChart.data.datasets[0].data.shift();
+          }
+          
+          priceChart.update();
+        });
+    }
+
+    // Initial update
+    updateData();
+    
+    // Update every 10 seconds
+    setInterval(updateData, 10000);
+  </script>
+</body>
+</html> 
